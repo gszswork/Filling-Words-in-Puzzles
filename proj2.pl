@@ -2,8 +2,8 @@
 
 
 puzzle_solution(Puzzle, WordList):-
-solve_puzzle(Puzzle, WordList, FilledPuzzle),
-Puzzle = FilledPuzzle.
+construct_slots(Puzzle, Slots),
+fill_words(Slots, WordList).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -16,10 +16,7 @@ Puzzle = FilledPuzzle.
 * each predicate is used.
 *
 */
-puzzle_solution(Puzzle, Wordlist, FilledPuzzle):-
-fill_with_vars(Puzzle,FilledPuzzle),
-construct_slots(FilledPuzzle,Slots),
-fill_words(Slots, Wordlist).
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -219,6 +216,5 @@ CurrentBest1= S,
 MatchNumber1 = Count
 ),
 select_best_slot(Wordlist, MatchNumber1, Slots, CurrentBest1, Best).
-
 
 
