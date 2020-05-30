@@ -1,5 +1,5 @@
 :- ensure_loaded(library(clpfd)).
-
+% have fun
 
 puzzle_solution(Puzzle, WordList):-
 construct_slots(Puzzle, Slots),
