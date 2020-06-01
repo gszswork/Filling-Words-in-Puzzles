@@ -1,5 +1,30 @@
-:- ensure_loaded(library(clpfd)).
+%%  File Name: proj2.pl
+%%  Author: SHUZHI GONG <shuzhig@student.unimelb.edu.au> ID: 1047975
 
+/* 
+----Problem Description:
+    A fill-in puzzle (sometimes called a fill-it-in) is like a crossword 
+    puzzle, except that instead of being given obscure clues telling us which 
+    words go where, you are given a list of all the words to place in the 
+    puzzle, but not told where they go.
+    The puzzle consists of a grid of squares, most of which are empty, into 
+    which letters or digits are to be written, but some of which are filled in 
+    solid, and are not to be written in. You are also given a list of words to 
+    place in the puzzle.
+    You must place each word in the word list exactly once in the puzzle, 
+    either left-to-right or top-to-bottom, filling a maximal sequence of empty 
+    squares. Also, every maximal sequence of non-solid squares that is more 
+    than one square long must have one word from the word list written in it. 
+    Many words cross one another, so many of the letters in a horizontal word 
+    will also be a letter in a vertical word. For a properly constructed 
+    fill-in puzzle, there will be only one way to fill in the words (in some 
+    cases, the puzzle is symmetrical around a diagonal axis, in which case 
+    there will be two symmetrical solutions).
+*/
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%************************puzzle_solution************************************%
 /*
 puzzle_solution(?Puzzle, +WordList).
     To solve the puzzle problem:
@@ -7,9 +32,10 @@ Note:   1. convert the Puzzle matrix to rows of slots
         2. fill words in those slots
     More description will be contained in detailed function comments.
 */
+:- ensure_loaded(library(clpfd)).
 puzzle_solution(Puzzle, WordList):-
     convert_to_slots(Puzzle, Slots),                      % [Note 1] 
-    fill_words(Slots, WordList).                          % [Note 2]
+    filling_words(Slots, WordList).                       % [Note 2]
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -80,9 +106,9 @@ get_row_slot([H|Rest], Acc, Slots):-
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%**************************fill_words part**********************************%
+%**************************filling_words part*******************************%
 /*
-fill_words(?Slot, +WordList).
+filling_words(?Slot, +WordList).
     Fill words from WordList into Slots, unify when all match. The strategy is:
     Each time a word is to be placed, you should count the number of words that 
     match each slot, and select (one of) the slot(s) with the fewest matching
@@ -95,15 +121,15 @@ Note:   1. select best slot with fewest matching words and filling responding
         3. remove the best slot and the filled word
         4. Tail recurision until Slots is empty. 
 */
-fill_words([],[]).
-fill_words(Slots, Wordlist):-
+filling_words([],[]).
+filling_words(Slots, Wordlist):-
     best_slot(Slots, Wordlist, BestSlot),                   % [Note 1]
     exclude(\=(BestSlot), Wordlist, MatchWord),
     member(Word, MatchWord),
     BestSlot = Word,                                        % [Note 2]
     exclude(==(Word), Wordlist, NewWords),
     exclude(==(BestSlot), Slots, NewSlots),
-    fill_words(NewSlots, NewWords).                         % [Note 3]
+    filling_words(NewSlots, NewWords).                      % [Note 3]
   
 /*
 best_slot(+Slots, +WordList, -BestSlot).
