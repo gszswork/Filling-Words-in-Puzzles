@@ -1,220 +1,153 @@
 :- ensure_loaded(library(clpfd)).
-% have fun
 
+/*
+puzzle_solution(?Puzzle, +WordList).
+    To solve the puzzle problem:
+Note:   1. convert the Puzzle matrix to rows of slots
+        2. fill words in those slots
+    More description will be contained in detailed function comments.
+*/
 puzzle_solution(Puzzle, WordList):-
-construct_slots(Puzzle, Slots),
-fill_words(Slots, WordList).
+    convert_to_slots(Puzzle, Slots),                      % [Note 1] 
+    fill_words(Slots, WordList).                          % [Note 2]
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-/**
-* solve_puzzle/3 takes Puzzle and Wordlist as two arguments and FilledPuzzle
-* will be the solved solution for the puzzle. It will call fill_with_vars/2,
-* construct_slots/2 and fill_words/2. As mentioned above, the three steps
-* algorithm is done by these three predicates.
-* More details about each of the three predicates will be introduced before
-* each predicate is used.
-*
+%********************convert_to_slots part**********************************%
+/*
+convert_to_slots(+Puzzle, -Slots).
+    Convert Puzzle matrix to slots. A slot is a maximal horizontal or vertical 
+    sequence of fill-able and pre-filled squres.
+    To convert the matrix to slots (get all pre-filled/fill-able) squares:
+Note:   1. get rows of slots from horizontal aspect.
+        2. transpose the matrix and get rows of slots from vertical aspect.
+        3. only include valid slots whose length is larger than 1.
+        4. append the horizontal and vertical slots to variable Slots.
 */
+convert_to_slots(Puzzle, Slots):- 
+    get_slots(Puzzle, HSlots),                             % [Note 1]
+    transpose(Puzzle, PuzzleT),
+    get_slots(PuzzleT, VSlots),                            % [Note 2]
+    include(valid,HSlots,NewHSlots),
+    include(valid,VSlots,NewVSlots),                       % [Note 3]   
+    append(NewHSlots, NewVSlots, Slots).                   % [Note 4]
 
+/*
+valid(+Slot).
+    Auxiliary function used in convert_to_slots/2, the predicates hold only 
+    when Slot's length is larger than 1.
+*/
+valid(Slot):-
+    length(Slot,Length), 
+    Length #> 1.
+
+/*
+get_slots(+Rows, -Slots).
+    Get all horizontal slots row by row with predicate get_row_slot which can 
+    extract slots in one row. 
+    To get all slots: 
+Note:   1. use predicates get_row_slot to extract slots in one row to 
+        CurrentRowSlots.
+        2. append CurrentRowSlots and Accumulated Slots to Slots.
+        3. Tail Recurision.
+*/
+get_slots([], []).
+get_slots([R|Rows], Slots):-                              
+    get_row_slot(R, [], CurrentRowSlots),                  % [Note 1]
+    append(CurrentRowSlots, AccRowSlots, Slots),           % [Note 2]
+    get_slots(Rows, AccRowSlots).                          % [Note 3]
+
+/*
+get_row_slot(+List, -Acc, -Slots).
+    Slots in one row. The 2nd parameter Acc in get_row_slot/3 is accumulartor
+    which recursively adds squares until meets char '#'. When meets '#', the 
+    get_row_slot/3 will add the accumulator to Slots and reset accumulator.
+    To get slots in one row:
+Note:   1. if no elements in the current list, add Acc to Slots when Acc not 
+        empty.
+        2. if meets '#', add the Acc to Slots and reset Acc as [] (empty).
+        3. else (doesn't meet '#'), keep adding squre elements to Acc.
+*/
+get_row_slot([],[],[]).
+get_row_slot([], Acc, [Acc]).                               % [Note 1]
+get_row_slot([H|Rest], Acc, Slots):-
+    ( H == '#' ->
+        Slots = [Acc|Slots1],
+        get_row_slot(Rest,[], Slots1)                       % [Note 2]
+    ;   append(Acc,[H],Acc1),
+        get_row_slot(Rest,Acc1,Slots)                       % [Note 3]
+    ).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-/**
-* Using a sequence of operations(like a pipeline) to traverse the puzzle
-* to eliminate the undersocres '_'.
-* FilledPuzzle: is the same puzzle with the input puzzle but every
-* underscore will be replaced by a logical variable.
-* Puzzle: input puzzle.
-*
+%**************************fill_words part**********************************%
+/*
+fill_words(?Slot, +WordList).
+    Fill words from WordList into Slots, unify when all match. The strategy is:
+    Each time a word is to be placed, you should count the number of words that 
+    match each slot, and select (one of) the slot(s) with the fewest matching
+    words to fill. When finish a filling process, remove matching word and slot
+    from their sets.
+    To fill into words:
+Note:   1. select best slot with fewest matching words and filling responding 
+        word.
+        2. get the matching word.
+        3. remove the best slot and the filled word
+        4. Tail recurision until Slots is empty. 
 */
-
-fill_with_vars([],[]).
-fill_with_vars(Puzzle, FilledPuzzle):-
-maplist(fill_row_with_vars, Puzzle, FilledPuzzle).
-
-
-% Row is a row of an unfilled puzzle, and FilledRow is the row filled with
-% logical variables.
-fill_row_with_vars([],[]).
-fill_row_with_vars(Row, FilledRow):-
-maplist(fill_underscore_var, Row, FilledRow).
-
-
-% Replace all undersocres with logical variables and keep everything else
-% that is not '_' the same.
-fill_underscore_var('_', _).
-fill_underscore_var(Ch, Ch):- Ch \= '_'.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-/**
-* construct_slots/2 will return a list of all slots of the puzzle.
-* Slots: is a list of slots in both horizontal and vertical of the puzzle.
-* FilledPuzzle: A list of chars that have been fileld with logical variables
-* in the previous fill_with_vars/2.
-*/
-construct_slots(FilledPuzzle, Slots):-
-rows_slots(FilledPuzzle, HorizontalSlots),
-transpose(FilledPuzzle, NewFilledPuzzle),
-rows_slots(NewFilledPuzzle, VerticalSlots),
-% The length of a slot has to be greated than one.
-include(length_,HorizontalSlots,NewHorizontalSlots),
-include(length_,VerticalSlots,NewVerticalSlots),
-append(NewHorizontalSlots, NewVerticalSlots,Slots).
-
-
-% Helper function. In order to justify if the length of a list is greater
-% than one.
-length_(List):-
-length(List,Length),
-Length > 1.
-
-
-% Slots: is a list of all the slots in all Rows of the puzzle.
-% This predicate can be reused later when we transpose the puzzle.
-% Rows: is a list of lists of Char of the puzzle.
-% Every row os slot of the puzzle will be stored in Slots.
-rows_slots([], []).
-rows_slots([R|Rows], Slots):-
-one_row_slot(R, RowSlots),
-append(RowSlots,TempSlots, Slots),
-rows_slots(Rows, TempSlots).
-
-% one_row_slot/2 will return Slots which contain a list of slots in the Row.
-% Slots: will be the result of splitting the Row with '#'.
-% one_row_slot/2 calls one_row_slot/3 with a tail recursion (initialising
-%     the acc as []).
-one_row_slot(Row, Slots):-
-one_row_slot(Row, [], Slots).
-
-
-/**
-* one_row_slot/3 return the slots in one row.
-* It uses Acc as an accumulator, recursively adding chars into it
-* until it meets a '#'. When meeting a '#', it adds the Acc into Slots and
-* resets Acc to be empty lists.
-*/
-% Notice that if there is no '#' till the end of the row, then Acc is made
-% into a list with itself.(This is another base case that needs
-% to be handled.)
-% This is different from the seoncd base case. Since the seoncd base case is
-% just the termination of one_row_slot/3
-one_row_slot([], Acc, [Acc]):-
-Acc \= [].
-one_row_slot([],[],[]).
-% If there is a '#', add the Acc to the list of slots and reset Acc to an
-% empty list.
-one_row_slot([H|Rest], Acc, Slots):-
-H == '#',
-Slots = [Acc|Slots1],
-one_row_slot(Rest,[], Slots1).
-% If not meeting the '#', keep adding to Acc.
-% New slot appended after the previous one, in order to keep the correct
-% order.
-one_row_slot([H|Rest], Acc,Slots):-
-H \== '#',
-append(Acc,[H],Acc1),
-one_row_slot(Rest,Acc1,Slots).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-/**
-* fill_words/2 is to fill a word in Wordlist to all slots in Slots.
-* select_best_slot/3 will be called to find the best slot to fill in words.
-* Each time we filled one slot with one word, repeat fill_words/2 with the
-* rest of the slots. The word that has been filled will not be filled again.
-* The bset slot is the slot that has the fewest matching words in order to
-* cut off the seatch space. More about selecting will be introduced later of
-* the predicate select_best_slot/3.
-* Slots: a list of slots in the puzzle.
-* Wordlist: a list of words being filled into the slots.
-*/
-
 fill_words([],[]).
 fill_words(Slots, Wordlist):-
-select_best_slot(Slots, Wordlist, Best),
-exclude(\=(Best), Wordlist, Match),
-member(Word, Match),
-Best = Word,
-% Delete the choosen slot and the word that has been filled.
-% Repeat selecting until Slots is empty.
-exclude(==(Word), Wordlist, RestOfWords),
-exclude(==(Best), Slots, RestOfSlots),
-fill_words(RestOfSlots, RestOfWords).
-
-
-/**
-* select_best_slot/3 will return the best slot, which is defined as the
-* least amount of matching words that can be used to fill(this will reduce
-the search space and backtrack space)
-* The predicate will use select_best_slot/5, which will try to unify a slot
-* with a word. (A word is said to be 'match' only when the word could unify
-the slot).More explaination will be introduced later.
-* [H|Rest]: is a list of slots in the puzzle.
-* Wordlist: is a list words being filled into the puzzle.
-* Best: is the slot with the fewest matching words in the Wordlist.
-*
+    best_slot(Slots, Wordlist, BestSlot),                   % [Note 1]
+    exclude(\=(BestSlot), Wordlist, MatchWord),
+    member(Word, MatchWord),
+    BestSlot = Word,                                        % [Note 2]
+    exclude(==(Word), Wordlist, NewWords),
+    exclude(==(BestSlot), Slots, NewSlots),
+    fill_words(NewSlots, NewWords).                         % [Note 3]
+  
+/*
+best_slot(+Slots, +WordList, -BestSlot).
+    It will return the best slot with least amount of 
+    matching words. (This can minimuse the search space based on Hint7.)
+    The selection is assessed in 2 steps:
+Note:   1. get MatchNumber by match_word_num/3.
+        2. pass the current slot and matching number to select_best_slot/5
 */
-select_best_slot([H|Rest], Wordlist, Best):-
-% count_/3 will return Number as the number of the matching words.
-% Slot here is considered as the 'temp'-best slot so far. It will
-% be passed to select_best_slot/5 to test if it is the real best
-count_(H, Wordlist, MatchNumber),
-select_best_slot(Wordlist,MatchNumber, Rest, H, Best).
+best_slot([S|Slots], Wordlist, BestSlot):-
+    match_word_num(S, Wordlist, 0, MatchNumber),                   % [Note 1]
+    select_best_slot(Slots, Wordlist, MatchNumber, S, BestSlot).   % [Note 2]
 
-
-/**
-* count_/3 will call count_/4 with a Acc.
-* The wordlist will be traversed to check if there is one word that can
-* be fit into the slot.
-* MatchNumber: is the number of words in the wordlist that can fit in
-* the slot.
-* Slot: is a slot in the puzzle.
-* Wordlist: is a list of words being filled into the puzzle.
-
+/*
+match_word_num(?Slot, +WordList, -Acc, -MatchNumber).
+    It can traverse the WordList and count how many words match Slot.
+    To get the matching word number:
+Note:   1. When the WordList is empty, return the Acc as matching number.
+        2. Unify and add Acc if match, then tail recurision.
 */
-count_(Slot, Wordlist, MatchNumber):-
-count_(Slot, Wordlist, 0, MatchNumber).
-
-/**
-* Acc is the accumulator. The Wordlist is being traversed to check all the
-* wordlist.
-* Slot: is a slot of the puzzle.
-* MatchNumber: the number of matching words of the slot.
+match_word_num(_,[], Acc, Acc).                               % [Note 1]
+match_word_num(Slot, [W|Wordlist], Acc, MatchNumber):-
+    (Slot \= W->                                              % [Note 2]
+        match_word_num(Slot, Wordlist, Acc, MatchNumber)
+    ;   % Note the Slot (part of Puzzle) will be unified here. 
+        match_word_num(Slot, Wordlist, Acc+1, MatchNumber)
+    ).
+    
+/*
+select_best_slot(+Slots, +WordList, +MatchNumber, -CurrentBest, -BestSlot).
+    Traverse the slot list (Slots) to check whether the slot passed from
+    best_slot (CurrentBest) is really the best.
+Note:   1. If Slots is empty, then the current best is the final best.
+        2. If one slot's match number is not smaller, just go next.
+        3. If one slot's match number is smaller, change the current best and 
+        match number, then go next.
 */
-count_(_,[], Acc, Acc).
-count_(Slot, [W|Wordlist], Acc, MatchNumber):-
-% If the Slot can't be unified by W, keep the number unincreased.
-% Otherwise increment by one.
-(Slot \= W->
-Acc1 is Acc;
-Acc1 is Acc+1
-),
-count_(Slot, Wordlist, Acc1, MatchNumber).
-
-
-/**
-* select_best_slot(Wordlist, MatchNumber, Slots, CBest, Best) is to compute
-* the best slot. This is the main algorithm
-* select_best_slot/5 will also use count/3 to traverse the wordlist to find
-* the MatchNumber. It then compute the best slot by selecting the slot
-* with the fewest matching words.
-* MatchNumber is the number of matching words that the CurrentBest has
-* If Count < MatchNumber(which the CurrentBest has), then a better slot
-* that has fewer matching words is found. Change the CurrentBest and the
-* MatchNumber then.
-*/
-select_best_slot(_,_, [], Best, Best).
-select_best_slot(Wordlist, MatchNumber, [S|Slots], CurrentBest, Best):-
-count_(S, Wordlist, Count),
-(Count >= MatchNumber->
-CurrentBest1 = CurrentBest,
-MatchNumber1 = MatchNumber;
-CurrentBest1= S,
-MatchNumber1 = Count
-),
-select_best_slot(Wordlist, MatchNumber1, Slots, CurrentBest1, Best).
+select_best_slot([], _, _, BestSlot, BestSlot).                % [Note 1]
+select_best_slot([S|Slots], Wordlist, MatchNumber, CurrentBest, BestSlot):-
+    match_word_num(S, Wordlist, 0, CandidateNum),
+    (CandidateNum >= MatchNumber->                             % [Note 2]
+        select_best_slot(Slots, Wordlist, MatchNumber, CurrentBest, BestSlot)
+                                                               % [Note 3]
+    ;   select_best_slot(Slots, Wordlist, CandidateNum, S, BestSlot)
+    ).
 
 
